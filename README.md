@@ -2,7 +2,7 @@
 <h1 align="center">ANTI-PUZZLE 🧩</h1>
 </div>
 <div align="center">
-<img src="https://github.com/Integrated-Project-2-2024-UVic-UCC/anti-puzzle/tree/main/Imatges/Projecte[1].jpg">
+<img src="https://github.com/Integrated-Project-2-2024-UVic-UCC/anti-puzzle/blob/main/Imatges/Projecte%5B1%5D.jpg">
 </div>
 <p>
 </p>
