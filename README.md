@@ -29,7 +29,7 @@ https://github.com/Integrated-Project-2-2024-UVic-UCC/anti-puzzle/assets/1582036
 <td width="100%">
 <h3 align="center">Anti-Puzzle BOM 📖✔️</h3>
 <div align="center">
-<img src="(https://github.com/Integrated-Project-2-2024-UVic-UCC/anti-puzzle/tree/main/Imatges/Projecte[1].jpg)" width="400">
+<img src="https://github.com/Integrated-Project-2-2024-UVic-UCC/anti-puzzle/blob/main/Imatges/Projecte%5B1%5D.jpg">
 <p>
 </p>
 <p>In this section you will see each of the components that will shape this project. For each component you will have a purchase link.💲 </p>
@@ -44,7 +44,7 @@ https://github.com/Integrated-Project-2-2024-UVic-UCC/anti-puzzle/assets/1582036
 <td width="50%">
 <h3 align="center">Mechanical Part ⚙️</h3>
 <div align="center">
-<img src="(https://github.com/Integrated-Project-2-2024-UVic-UCC/anti-puzzle/tree/main/Imatges/Projecte[1].jpg)" width="400">
+<img src="https://github.com/Integrated-Project-2-2024-UVic-UCC/anti-puzzle/blob/main/Imatges/Projecte%5B1%5D.jpg">
 <p>
 </p>
 <p>In this section you will be able to have blueprints and printable files as well as the original files of each one of the pieces.</p>
@@ -55,7 +55,7 @@ https://github.com/Integrated-Project-2-2024-UVic-UCC/anti-puzzle/assets/1582036
 <td width="50%">
 <h3 align="center">Electrical Part ⚡</h3>
 <div align="center">
-<img src="(https://github.com/Integrated-Project-2-2024-UVic-UCC/anti-puzzle/tree/main/Imatges/Projecte[1].jpg)" width="400">
+<img src="https://github.com/Integrated-Project-2-2024-UVic-UCC/anti-puzzle/blob/main/Imatges/Projecte%5B1%5D.jpg">
 <p>
 </p>
 <p>In this section you will be able to see the drawings and the electronic designs as well as the datasheets.</p>
