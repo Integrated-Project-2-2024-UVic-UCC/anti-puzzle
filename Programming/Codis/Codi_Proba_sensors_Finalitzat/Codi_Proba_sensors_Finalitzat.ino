@@ -58,18 +58,19 @@ void setup () {
 }
 
 void loop () {
-  int botestat = digitalRead(bot); 
+  //int botestat = digitalRead(bot); 
 
-  if (botestat == HIGH) {
+  //if (botestat == HIGH) {
     float val1 = analogRead(A325_1); 
     float val2 = analogRead(A325_2);
     float val3 = analogRead(A325_3);
     float val4 = analogRead(A325_4);
 
     Print(val1,val2,val3,val4);
-  }
+  
+  //}
 
-  botestatAnterior = botestat;
+  //botestatAnterior = botestat;
 }
 
 
