@@ -1,103 +1,138 @@
-// Definimos los pines a utilizar para cada motor
-#define X_STEP_PIN 2
+#define X_STEP_PIN 9
 #define X_DIR_PIN 3
 #define X_ENABLE_PIN 4 // Define el pin de habilitación para el motor en el eje X
-#define Y_STEP_PIN 5
+#define Y_STEP_PIN 11
 #define Y_DIR_PIN 6
 #define Y_ENABLE_PIN 7 // Define el pin de habilitación para el motor en el eje Y
+#define pot1 A4
+#define pot2 A5
 
-volatile long totalStepsX = 0; // Variable para llevar un seguimiento del número total de pasos en el eje X
-volatile long totalStepsY = 0; // Variable para llevar un seguimiento del número total de pasos en el eje Y
-
-// Definimos las variables para la frecuencia y el periodo del pulso
-const float PULSES_PER_SECOND = 10000.0; // Frecuencia en pulsos por segundo
-const float PULSE_PERIOD_MICROSECONDS = 2000000.0 / PULSES_PER_SECOND; // Periodo del pulso en microsegundos
+volatile long totalStepsX = 0; 
+volatile long totalStepsY = 0; 
 
 // Inicialización de los motores
 void setup() {
+  Serial.begin(9600);
+  Serial.print(totalStepsX);
+  Serial.println( "1! " );
+
+  pinMode(pot1, INPUT);
+  pinMode(pot2, INPUT);
   pinMode(X_STEP_PIN, OUTPUT);
   pinMode(X_DIR_PIN, OUTPUT);
-  pinMode(X_ENABLE_PIN, OUTPUT); // Configura el pin de habilitación como salida
+  pinMode(X_ENABLE_PIN, OUTPUT);
   pinMode(Y_STEP_PIN, OUTPUT);
   pinMode(Y_DIR_PIN, OUTPUT);
-  pinMode(Y_ENABLE_PIN, OUTPUT); // Configura el pin de habilitación como salida
+  pinMode(Y_ENABLE_PIN, OUTPUT); 
   
-  // Inicialmente, deshabilita los motores
-  digitalWrite(X_ENABLE_PIN, LOW); // Deshabilita el motor en el eje X
-  digitalWrite(Y_ENABLE_PIN, LOW); // Deshabilita el motor en el eje Y
+  digitalWrite(X_ENABLE_PIN, LOW); 
+  digitalWrite(Y_ENABLE_PIN, LOW); 
 
   // Inicializamos las direcciones de los motores (por ejemplo, hacia adelante)
   digitalWrite(X_DIR_PIN, LOW);
   digitalWrite(Y_DIR_PIN, HIGH);
+
+  configurarTimer1(10000.0); 
+  configurarTimer2(10000.0);
+  totalStepsX = 0;
+  totalStepsY = 0;
+}
+
+unsigned int Preescaler(unsigned int frecuenciaDeseada){
+  unsigned long frecuenciaReloj = 16000000UL; // Frecuencia del reloj del ATmega328P en Hz
+  unsigned long contadorMaximo =  65535UL; // Contador máximo para los timers de 16 bits
   
-  // Configuración de los timers para generar la señal de paso para cada motor
-  // Timer 1 (para el motor en el eje X)
-  TCCR1A = 0; // Configuración inicial de los registros
+  unsigned int preescaler = frecuenciaReloj / ((frecuenciaDeseada) * contadorMaximo * 2) - 1;
+  return preescaler;
+}
+
+void configurarTimer1(unsigned int frecuenciaDeseada) {
+
+  TCCR1A = 0; 
   TCCR1B = 0;
-  TCNT1  = 0; // Inicializamos el contador del timer 1
-  OCR1A = round(PULSE_PERIOD_MICROSECONDS); // Configuramos el valor de comparación para la frecuencia deseada
-  TCCR1A |= (1 << COM1A0); // Configuramos el Timer 1 para el modo CTC (Clear Timer on Compare Match) y activamos la salida OC1A
-  TCCR1B |= (1 << WGM12); // Configuramos el Timer 1 para el modo CTC
-  TCCR1B |= (1 << CS10); // Configuramos el prescaler para que el timer cuente a la frecuencia del reloj
-  TIMSK1 |= (1 << OCIE1A); // Habilitamos la interrupción de comparación del Timer 1
-  
-  // Timer 2 (para el motor en el eje Y)
+  TCNT1  = 0; 
+
+  OCR1A = Preescaler(frecuenciaDeseada);
+  // Utilitzem un preescaler de 8 bits perque ens permet mes control en freq altes i per tant ens permet mes velocitat 
+  TCCR1A |= (1 << COM1A0); 
+  TCCR1B |= (1 << WGM12); 
+  TCCR1B |= (0 << CS12); 
+  TCCR1B |= (1 << CS11); 
+  TCCR1B |= (1 << CS10); 
+  TIMSK1 |= (1 << OCIE1A); 
+}
+// Función para configurar el Timer 2 con el preescaler proporcionado
+void configurarTimer2(unsigned int frecuenciaDeseada) {
+
   TCCR2A = 0; // Configuración inicial de los registros
   TCCR2B = 0;
   TCNT2  = 0; // Inicializamos el contador del timer 2
-  OCR2A = round(PULSE_PERIOD_MICROSECONDS); // Configuramos el valor de comparación para la frecuencia deseada
+
+  OCR2A = Preescaler(frecuenciaDeseada); // Configuramos el preescaler
+
   TCCR2A |= (1 << COM2A0); // Configuramos el Timer 2 para el modo CTC (Clear Timer on Compare Match) y activamos la salida OC2A
   TCCR2A |= (1 << WGM21); // Configuramos el Timer 2 para el modo CTC
-  TCCR2B |= (1 << CS20); // Configuramos el prescaler para que el timer cuente a la frecuencia del reloj
+  TCCR2B |= (0 << CS20);
+  TCCR2B |= (0 << CS21); // Configuramos el prescaler para que el timer cuente a la frecuencia del reloj
+  TCCR2B |= (1 << CS22);
   TIMSK2 |= (1 << OCIE2A); // Habilitamos la interrupción de comparación del Timer 2
 }
 
-// Función para mover el motor en el eje X
-void moveMotorX() {
-  digitalWrite(X_STEP_PIN, HIGH); // Generamos un pulso
-  delayMicroseconds(100); // Esperamos un corto tiempo (ajustar según la velocidad del motor)
-  digitalWrite(X_STEP_PIN, LOW); // Apagamos el pulso
-  totalStepsX++; // Incrementa el contador de pasos en el eje X
+void setSpeedMotorX(float speed){
+  OCR1A = speed;
+  TCNT1 = 0;
 }
 
-// Función para mover el motor en el eje Y
-void moveMotorY() {
-  digitalWrite(Y_STEP_PIN, HIGH); // Generamos un pulso
-  delayMicroseconds(100); // Esperamos un corto tiempo (ajustar según la velocidad del motor)
-  digitalWrite(Y_STEP_PIN, LOW); // Apagamos el pulso
-  totalStepsY++; // Incrementa el contador de pasos en el eje Y
+void setSpeedMotorY(float speed){
+  OCR2A = speed;
+  TCNT2 = 0;
 }
 
-void enableMotorX() {digitalWrite(X_ENABLE_PIN, LOW);} // Habilita el motor en el eje X (activo en bajo)
+void enableMotorX() {digitalWrite(X_ENABLE_PIN, LOW);} 
 
-void disableMotorX() {digitalWrite(X_ENABLE_PIN, HIGH);} // Deshabilita el motor en el eje X (activo en alto)
+void disableMotorX() {digitalWrite(X_ENABLE_PIN, HIGH);} 
 
-void enableMotorY() {digitalWrite(Y_ENABLE_PIN, LOW);} // Habilita el motor en el eje Y (activo en bajo)
+void enableMotorY() {digitalWrite(Y_ENABLE_PIN, LOW);} 
 
-void disableMotorY() {digitalWrite(Y_ENABLE_PIN, HIGH);} // Deshabilita el motor en el eje Y (activo en alto)
+void disableMotorY() {digitalWrite(Y_ENABLE_PIN, HIGH);} 
+
 
 // Función para manejar la interrupción del Timer 1
 ISR(TIMER1_COMPA_vect) {
-  moveMotorX(); // Llamamos a la función para mover el motor en el eje X
-  if ((totalStepsX > 25000) || (totalStepsX > 50000)){
-    disableMotorX();
-    enableMotorY();
-  }
-  if (totalStepsY > 50000){
-    enableMotorX();
-    disableMotorY();
-    }
-  if (totalStepsX >= 80000){
-    enableMotorY();
-  }
-  moveMotorY();
+// 1 pas son 1.8º per tant 1 volta son 200 pasos.
+// l'eix del motor es de 5mm 
+// la distancia que recorre en una volta son 5*pi o 15.7079...
+// per tant si la distancia que ha de recorre son 280 x 280mm 
+// per recorre aquesta distancia el motor ha de fer 17,8253... voltes que son 3565.070725 pasos.
+  if (digitalRead(X_ENABLE_PIN) == LOW){totalStepsX++;}
+  if (Y_ENABLE_PIN){totalStepsY++;}
+
+  Serial.println(totalStepsX);
+
+  // if (totalStepsX == 3565){
+  //   disableMotorX();
+  //   Serial.print(totalStepsX);
+  //   Serial.println();
+  // }
+  // Serial.print(lect1);
+  // Serial.println();
+  // Serial.print(lect2);
+  // Serial.println();
 }
 
 // Función para manejar la interrupción del Timer 2
 ISR(TIMER2_COMPA_vect) {
-
 }
 
-// Función principal
 void loop() {
+  int lect1 = map(analogRead(pot1),1,1024, 16, 256);
+  int lect2 = map(analogRead(pot2),1,1024, 16, 256);
+  
+  // Serial.print(lect1);
+  // Serial.println();
+  // Serial.print(lect2);
+  // Serial.println();
+
+  setSpeedMotorX(lect1);
+  setSpeedMotorY(lect2);
 }
