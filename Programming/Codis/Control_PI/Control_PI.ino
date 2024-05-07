@@ -137,10 +137,9 @@ void loop() {
   int errY = (hall1 + hall4) - (hall2 + hall3); // error del eje y
 
   // Ganancias del controlador PI
-  float kpX = 0.1;
-  float kiX = 0.01;
-  float kpY = 0.1;
-  float kiY = 0.01;
+  float kp = 0.148914955780646;
+  float ki = 8938.3224092643;
+
 
   static float integralErrorX = 0;
   static float integralErrorY = 0;
@@ -148,8 +147,8 @@ void loop() {
   integralErrorX += errX;
   integralErrorY += errY;
 
-  float outputX = kpX * errX + kiX * integralErrorX;
-  float outputY = kpY * errY + kiY * integralErrorY;
+  float outputX = kp * errX + ki * integralErrorX;
+  float outputY = kp * errY + ki * integralErrorY;
 
   // Control de la velocidad de los motores basado en la salida del controlador PI
   setSpeedMotorX(outputX);
