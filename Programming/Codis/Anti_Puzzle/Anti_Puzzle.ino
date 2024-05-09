@@ -1,7 +1,6 @@
 #include <util/atomic.h>
 #include <EEPROM.h>
 
-
 #define X_STEP_PIN 9
 #define X_DIR_PIN 3
 #define X_ENABLE_PIN 4 // Define el pin de habilitación para el motor en el eje X
@@ -13,10 +12,6 @@
 #define EEPROM_X_ADDRESS 0
 #define EEPROM_Y_ADDRESS 2
 
-int X = 105; // Coordenada X deseada
-int Y = 85;  // Coordenada Y deseada
-
-
 const int hall1Pin = A0; // Sensor Hall 1 (arriba izquierda)
 const int hall2Pin = A1; // Sensor Hall 2 (arriba derecha)
 const int hall3Pin = A2; // Sensor Hall 3 (abajo izquierda)
@@ -25,10 +20,12 @@ const int hall4Pin = A3; // Sensor Hall 4 (abajo derecha)
 volatile int totalStepsX = 0; 
 volatile int totalStepsY = 0; 
 
-const float distancia_por_paso = (3.1416 * 2.54) * 1.8 / 360; // cm/paso (2.54 cm por pulgada)
-
 bool dirX;
 bool dirY;
+
+// *********************************
+// Incedeix a memoria
+// *********************************
 
 void Guardar_Memoria(int x, int y) {
   int posX = EEPROM.read(EEPROM_X_ADDRESS);
@@ -40,10 +37,10 @@ void Guardar_Memoria(int x, int y) {
   } 
 }
 
-
 // ················································
 // Timers i preescales
 // ················································
+
 unsigned int Preescaler(unsigned int frecuenciaDeseada){
   unsigned long frecuenciaReloj = 16000000UL; // Frecuencia del reloj del ATmega328P en Hz
   unsigned long contadorMaximo =  65535UL; // Contador máximo para los timers de 16 bits
@@ -86,6 +83,7 @@ void configurarTimer2(unsigned int frecuenciaDeseada) {
   TIMSK2 |= (1 << OCIE2A); // Habilitamos la interrupción de comparación del Timer 2
 }
 // ················································
+// Habilita i deshabilita motors
 // ················································
 
 void enableMotorX() {digitalWrite(X_ENABLE_PIN, LOW);} 
@@ -96,7 +94,10 @@ void enableMotorY() {digitalWrite(Y_ENABLE_PIN, LOW);}
 
 void disableMotorY() {digitalWrite(Y_ENABLE_PIN, HIGH);} 
 
+// ################################################
 // Geters
+// ################################################
+
 long getStepsX(void){
   long aux;
   ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
@@ -128,8 +129,10 @@ long getSpeedY(){
   };
   return speedY;
 }
-
+// ################################################
 // Seters 
+// ################################################
+
 void setDirectionMotorX(bool dir){
   dirX = dir;
   digitalWrite(X_DIR_PIN, dirX);
@@ -150,52 +153,70 @@ void setSpeedMotorY(float speed){
   TCNT2 = 0;
 }
 
-void setStepsX(int steps) {
-  ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
-    totalStepsX += steps;
-  }
-}
+void Home(int X, int Y) {
+  int homeX = 42780 / 2; // Mitad de la coordenada X que son 42.780 micropasos
+  int homeY = 34624 / 2; // Mitad de la coordenada Y que son 34.624 micropasos
 
-void setStepsY(int steps) {
-  ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
-    totalStepsY += steps;
-  }
-}
+  int Ix = homeX - X;
+  int Iy = homeY - Y;
 
-// Función para manejar la interrupción del Timer 1
-ISR(TIMER1_COMPA_vect) {if(dirX) {totalStepsX++;} else {totalStepsX--;}}
+  float Vx = Ix / 5.0;
+  float Vy = Iy / 5.0; 
 
-// Función para manejar la interrupción del Timer 2
-ISR(TIMER2_COMPA_vect) {}
+  // Paso 1: Mover el motor X a la posición de inicio en X
+  setDirectionMotorX(X < homeX); 
+  setDirectionMotorY(Y < homeY); 
 
-// -------------------------------------------------------
-// -------------------------------------------------------
-// Pos Home
+  setSpeedMotorX(Vx);
+  setSpeedMotorY(Vy);
 
-void moveToHomePosition() {
-  int stepsX = (25.0 / distancia_por_paso) / 2; 
-  int stepsY = (17.0 / distancia_por_paso) / 2; 
-  
-  setDirectionMotorX(true);
-  setDirectionMotorY(true);
-  
-  setSpeedMotorX(200);
-  setSpeedMotorY(255);
-  
   enableMotorX();
   enableMotorY();
-  
-  // Espera a que ambos motores lleguen a la posición de inicio
-  while (getStepsX() < stepsX || getStepsY() < stepsY) {
-  }
+
+  while (!(getStepsX() == Ix && getStepsY() == Iy)) {}
 
   disableMotorX();
   disableMotorY();
 }
 
-// %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-// "Realimentació"
-// %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+void CI() {
+  // Paso 1: Mover los motores a la mitad de las coordenadas
+  int mitadX = 42780 / 2; // Mitad de la coordenada X que son 42.780 micropasos
+  int mitadY = 34624 / 2; // Mitad de la coordenada Y que son 34.624 micropasos
+
+  float Vx = mitadX / 5.0; 
+  float Vy = mitadY / 5.0; 
+
+  setDirectionMotorX(true);
+  setDirectionMotorY(true);
+  
+  setSpeedMotorX(Vx);
+  setSpeedMotorY(Vy);
+
+  enableMotorX();
+  enableMotorY();
+
+  while (!(getStepsX() >= mitadX && getStepsY() >= mitadY)) {}
+
+  disableMotorX();
+  disableMotorY();
+
+  // Paso 2: Mover el motor X hacia la derecha para completar los 210mm
+  // Calcular los pasos necesarios para recorrer los 210mm en X
+  int pasosX = 42.780;
+  enableMotorX();
+  while (!(getStepsX() >= pasosX)){
+    int difdist = pasosX - getStepsX();
+
+    float velocidadX = map(difdist, 0, pasosX, 225, 16);
+
+    setSpeedMotorX(velocidadX);
+  }
+  disableMotorX();
+
+  // Paso 3: Guardar las coordenadas en la memoria EEPROM
+  Guardar_Memoria(pasosX, mitadY);
+}
 
 int PosicioIman(){
   // 200 pasos per 16micropasoso = 3200micropasos 1 volta
@@ -210,17 +231,16 @@ int PosicioIman(){
   bool dirX = EX > 0; // Si errX es positivo, el imán se mueve en la dirección positiva de X
   bool dirY = EY > 0; // Si errY es positivo, el imán se mueve en la dirección positiva de Y
 
-  float positionX = map(abs(EX), 500, 1024, -110, 110);
-  float positionY = map(abs(EY), 500, 1024, -110, 110);
+  float moveX = map(EX, 505, 1024, 0, 42780);
+  float moveY = map(EY, 505, 1024, 0, 34624);
 
-  int speedX = map(abs(positionX), 0, 110, 256, 0); // Ajusta según sea necesario
-  int speedY = map(abs(positionY), 0, 110, 256, 0); // Ajusta según sea necesario
-
-  setDirectionMotorX(dirX);
-  setSpeedMotorX(speedX);
-
-  setDirectionMotorY(dirY);
-  setSpeedMotorY(speedY);
+  if (moveX == 0 && moveY == 0) {
+    // Guardar la posición actual de los motores en la memoria EEPROM
+    Guardar_Memoria(getStepsX(), getStepsY());
+  } else {
+    // Mover los motores a las nuevas coordenadas
+    Movemotors(moveX, moveY, dirX, dirY);
+  }
 }
 
 int CalculerrorX(int hall1,int hall2,int hall3,int hall4){
@@ -232,9 +252,45 @@ int CalculerrorY(int hall1,int hall2,int hall3,int hall4){
   return errY;
 }
 
-// =========================================================
-// =========================================================
+void Movemotors(float posX, float posY, bool dirX, bool dirY) {
+  // Mover el motor X
+  Movepos(posX, dirX, posY, dirY);
 
+  disableMotorX();
+  disableMotorY();
+}
+
+void Movepos(float stepsX, bool dirX, float stepsY, bool dirY) {
+  
+  float Vx = stepsX / 5.0;
+  float Vy = stepsY / 5.0; 
+
+  setDirectionMotorX(dirX);
+  setDirectionMotorY(dirY);
+  
+  enableMotorX();
+  enableMotorY();
+
+  while (!(getStepsX() >= stepsX && getStepsY() >= stepsY)) {
+    // Configurar la velocidad del motor X en función de la distancia restante
+    float velX = map(stepsX - getStepsX(), 0, stepsX, 225, Vx);
+    float velY = map(stepsY - getStepsY(), 0, stepsY, 225, Vx);
+    setSpeedMotorX(velX);
+    setSpeedMotorY(velY);
+  }
+}
+// &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+// Interrupcions
+// &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+// Función para manejar la interrupción del Timer 1
+ISR(TIMER1_COMPA_vect) {if(dirX) {totalStepsX++;} else {totalStepsX--;}}
+
+// Función para manejar la interrupción del Timer 2
+ISR(TIMER2_COMPA_vect) {if(dirY) {totalStepsY++;} else {totalStepsY--;}}
+
+// 
+// Codi Principal
+// 
 void setup() {
   Serial.begin(9600);
 
@@ -263,10 +319,9 @@ void setup() {
   
   enableMotorX();
   enableMotorY();
-  moveToHomePosition();
 }
-
 void loop() {
-  PosicioIman();
-  
+  CI();
+  // Home();
+  // PosicioIman();
 }

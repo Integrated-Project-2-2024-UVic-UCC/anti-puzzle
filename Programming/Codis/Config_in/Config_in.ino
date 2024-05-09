@@ -16,7 +16,6 @@
 int X = 105; // Coordenada X deseada
 int Y = 85;  // Coordenada Y deseada
 
-
 const int hall1Pin = A0; // Sensor Hall 1 (arriba izquierda)
 const int hall2Pin = A1; // Sensor Hall 2 (arriba derecha)
 const int hall3Pin = A2; // Sensor Hall 3 (abajo izquierda)
@@ -39,7 +38,6 @@ void Guardar_Memoria(int x, int y) {
     EEPROM.write(EEPROM_Y_ADDRESS, y);
   } 
 }
-
 
 // ················································
 // Timers i preescales
@@ -150,90 +148,57 @@ void setSpeedMotorY(float speed){
   TCNT2 = 0;
 }
 
-void setStepsX(int steps) {
-  ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
-    totalStepsX += steps;
-  }
+// void setStepsX(int steps) {
+//   ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
+//     totalStepsX += steps;
+//   }
+// }
+
+// void setStepsY(int steps) {
+//   ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
+//     totalStepsY += steps;
+//   }
+// }
+
+void CI() {
+  // Paso 1: Mover los motores a la mitad de las coordenadas
+  int mitadX = 42780 / 2; // Mitad de la coordenada X que son 42.780 micropasos
+  int mitadY = 34624 / 2; // Mitad de la coordenada Y que son 34.624 micropasos
+
+  float Vx = mitadX / 5.0; 
+  float Vy = mitadY / 5.0; 
+
+  setDirectionMotorX(true);
+  setDirectionMotorY(true);
+  
+  setSpeedMotorX(Vx);
+  setSpeedMotorY(Vy);
+
+  enableMotorX();
+  enableMotorY();
+
+  while (!(getStepsX() >= mitadX && getStepsY() >= mitadY)) {}
+
+  disableMotorX();
+  disableMotorY();
+
+  // Paso 2: Mover el motor X hacia la derecha para completar los 210mm
+  // Calcular los pasos necesarios para recorrer los 210mm en X
+  int pasosX = 42.780;
+  enableMotorX();
+  while (!(getStepsX() >= pasosX)){}
+  disableMotorX();
+
+  // Paso 3: Guardar las coordenadas en la memoria EEPROM
+  Guardar_Memoria(pasosX, mitadY);
 }
 
-void setStepsY(int steps) {
-  ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
-    totalStepsY += steps;
-  }
-}
 
 // Función para manejar la interrupción del Timer 1
 ISR(TIMER1_COMPA_vect) {if(dirX) {totalStepsX++;} else {totalStepsX--;}}
 
 // Función para manejar la interrupción del Timer 2
 ISR(TIMER2_COMPA_vect) {}
-
-// -------------------------------------------------------
-// -------------------------------------------------------
-// Pos Home
-
-void moveToHomePosition() {
-  int stepsX = (25.0 / distancia_por_paso) / 2; 
-  int stepsY = (17.0 / distancia_por_paso) / 2; 
-  
-  setDirectionMotorX(true);
-  setDirectionMotorY(true);
-  
-  setSpeedMotorX(200);
-  setSpeedMotorY(255);
-  
-  enableMotorX();
-  enableMotorY();
-  
-  // Espera a que ambos motores lleguen a la posición de inicio
-  while (getStepsX() < stepsX || getStepsY() < stepsY) {
-  }
-
-  disableMotorX();
-  disableMotorY();
-}
-
-// %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-// "Realimentació"
-// %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-int PosicioIman(){
-  // 200 pasos per 16micropasoso = 3200micropasos 1 volta
-  int hall1 = analogRead(hall1Pin);
-  int hall2 = analogRead(hall2Pin);
-  int hall3 = analogRead(hall3Pin);
-  int hall4 = analogRead(hall4Pin);
-
-  int EX = CalculerrorX(hall1,hall2,hall3,hall4);
-  int EY = CalculerrorY(hall1,hall2,hall3,hall4);
-
-  bool dirX = EX > 0; // Si errX es positivo, el imán se mueve en la dirección positiva de X
-  bool dirY = EY > 0; // Si errY es positivo, el imán se mueve en la dirección positiva de Y
-
-  float positionX = map(abs(EX), 500, 1024, -110, 110);
-  float positionY = map(abs(EY), 500, 1024, -110, 110);
-
-  int speedX = map(abs(positionX), 0, 110, 256, 0); // Ajusta según sea necesario
-  int speedY = map(abs(positionY), 0, 110, 256, 0); // Ajusta según sea necesario
-
-  setDirectionMotorX(dirX);
-  setSpeedMotorX(speedX);
-
-  setDirectionMotorY(dirY);
-  setSpeedMotorY(speedY);
-}
-
-int CalculerrorX(int hall1,int hall2,int hall3,int hall4){
-  int errX = (hall1 + hall2) - (hall3 + hall4);
-  return errX;
-}
-int CalculerrorY(int hall1,int hall2,int hall3,int hall4){
-  int errY = (hall1 + hall4) - (hall2 + hall3);
-  return errY;
-}
-
-// =========================================================
-// =========================================================
 
 void setup() {
   Serial.begin(9600);
@@ -260,13 +225,7 @@ void setup() {
 
   totalStepsX = 0;
   totalStepsY = 0;
-  
-  enableMotorX();
-  enableMotorY();
-  moveToHomePosition();
 }
-
 void loop() {
-  PosicioIman();
-  
+  CI();
 }

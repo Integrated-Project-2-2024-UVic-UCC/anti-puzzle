@@ -87,13 +87,7 @@ void enableMotorY() {digitalWrite(Y_ENABLE_PIN, LOW);}
 
 void disableMotorY() {digitalWrite(Y_ENABLE_PIN, HIGH);} 
 
-long getStepsX(void){
-  long aux;
-  ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
-    aux = totalStepsX;
-  };
-  return aux;
-}
+
 
 long getStepsY(void){
   long aux;
@@ -151,6 +145,15 @@ void moveToHomePosition() {
 // =========================================================
 // =========================================================
 
+long getStepsX(void){
+  long aux;
+  ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
+    aux = totalStepsX;
+  };
+  // Serial.println(aux);
+  return aux;
+}
+
 void setup() {
   Serial.begin(9600);
   pinMode(pot1, INPUT);
@@ -167,32 +170,37 @@ void setup() {
 
   setDirectionMotorX(true);
   setDirectionMotorY(true);
-  configurarTimer1(255); 
+  configurarTimer1(1); 
   configurarTimer2(255);
 
   totalStepsX = 0;
   totalStepsY = 0;
   
-  moveToHomePosition();
+  //moveToHomePosition();
 }
 
 // =========================================================
 // =========================================================
 
 void loop() {
-  int lect1 = 100; //map(analogRead(pot1),1,1024, 16, 256);
-  int lect2 = 16; //map(analogRead(pot2),1,1024, 16, 256);
-  
-  setSpeedMotorY(lect2);
+  // int lect1 = 100; //map(analogRead(pot1),1,1024, 16, 256);
+  // int lect2 = 16; //map(analogRead(pot2),1,1024, 16, 256);
+  //setSpeedMotorY(lect2);
+  // long s = getStepsX();
+  // Serial.println(s);
 
-  if(getStepsX()>6000){
-    setSpeedMotorX(16);
-  } else if (getStepsX()>4000) {
-     setSpeedMotorX(255);
-     Serial.println(getStepsX());
-  } else {
-    setSpeedMotorX(100);
-    Serial.println(getStepsX());
-  }
+  setSpeedMotorX(100);
+  Serial.println("IN: ");
+  if(getStepsX()>3200){
+    disableMotorX();
+    Serial.println("IN: ");
+    setSpeedMotorX(200);}
+  // } else if (getStepsX()>1000) {
+  //    setSpeedMotorX(225);
+  //    Serial.println(getStepsX());
+  // } else {
+  //   setSpeedMotorX(100);
+  //   Serial.println(getStepsX());
+  // }
 }
 
