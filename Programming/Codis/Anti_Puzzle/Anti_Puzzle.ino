@@ -17,8 +17,8 @@ const int hall2Pin = A1; // Sensor Hall 2 (arriba derecha)
 const int hall3Pin = A2; // Sensor Hall 3 (abajo izquierda)
 const int hall4Pin = A3; // Sensor Hall 4 (abajo derecha)
 
-volatile int totalStepsX = 0; 
-volatile int totalStepsY = 0; 
+volatile int totalStepsX; 
+volatile int totalStepsY; 
 
 bool dirX;
 bool dirY;
@@ -154,8 +154,8 @@ void setSpeedMotorY(float speed){
 }
 
 void Home(int X, int Y) {
-  int homeX = 42780 / 2; // Mitad de la coordenada X que son 42.780 micropasos
-  int homeY = 34624 / 2; // Mitad de la coordenada Y que son 34.624 micropasos
+  int homeX = (8250)/2; // Mitad de la coordenada X que son 8250 micropasos --> 3200*2.57
+  int homeY = (4570)/2; // Mitad de la coordenada Y que son 4570 micropasos
 
   int Ix = homeX - X;
   int Iy = homeY - Y;
@@ -173,7 +173,7 @@ void Home(int X, int Y) {
   enableMotorX();
   enableMotorY();
 
-  while (!(getStepsX() == Ix && getStepsY() == Iy)) {}
+  while (!(getStepsX() == Ix)){} // && getStepsY() == Iy)) {}
 
   disableMotorX();
   disableMotorY();
@@ -181,11 +181,11 @@ void Home(int X, int Y) {
 
 void CI() {
   // Paso 1: Mover los motores a la mitad de las coordenadas
-  int mitadX = 42780 / 2; // Mitad de la coordenada X que son 42.780 micropasos
-  int mitadY = 34624 / 2; // Mitad de la coordenada Y que son 34.624 micropasos
+  int mitadX = (8250)/2; // Mitad de la coordenada X que son 8250 micropasos --> 3200*2.57
+  int mitadY = (4570)/2; // Mitad de la coordenada Y que son 4570 micropasos
 
-  float Vx = mitadX / 5.0; 
-  float Vy = mitadY / 5.0; 
+  float Vx = mitadX / 50.0;
+  float Vy = mitadY / 50.0;
 
   setDirectionMotorX(true);
   setDirectionMotorY(true);
@@ -196,26 +196,23 @@ void CI() {
   enableMotorX();
   enableMotorY();
 
-  while (!(getStepsX() >= mitadX && getStepsY() >= mitadY)) {}
+  while ((getStepsX() < mitadX)){}// && (getStepsY() < mitadY)) {}
 
   disableMotorX();
   disableMotorY();
 
   // Paso 2: Mover el motor X hacia la derecha para completar los 210mm
   // Calcular los pasos necesarios para recorrer los 210mm en X
-  int pasosX = 42.780;
   enableMotorX();
-  while (!(getStepsX() >= pasosX)){
+  while ((getStepsX() < mitadX)){
     int difdist = pasosX - getStepsX();
-
-    float velocidadX = map(difdist, 0, pasosX, 225, 16);
-
+    float velocidadX = map(difdist, 0, mitadX, 225, 16);
     setSpeedMotorX(velocidadX);
   }
   disableMotorX();
 
   // Paso 3: Guardar las coordenadas en la memoria EEPROM
-  Guardar_Memoria(pasosX, mitadY);
+  Guardar_Memoria(getStepsX(), getStepsY());
 }
 
 int PosicioIman(){
@@ -231,8 +228,8 @@ int PosicioIman(){
   bool dirX = EX > 0; // Si errX es positivo, el imán se mueve en la dirección positiva de X
   bool dirY = EY > 0; // Si errY es positivo, el imán se mueve en la dirección positiva de Y
 
-  float moveX = map(EX, 505, 1024, 0, 42780);
-  float moveY = map(EY, 505, 1024, 0, 34624);
+  float moveX = map(EX, 505, 1024, 0, 8250);
+  float moveY = map(EY, 505, 1024, 0, 4570);
 
   if (moveX == 0 && moveY == 0) {
     // Guardar la posición actual de los motores en la memoria EEPROM
@@ -309,9 +306,7 @@ void setup() {
   pinMode(hall3Pin, INPUT);
   pinMode(hall4Pin, INPUT);
   
-  setDirectionMotorX(true);
-  setDirectionMotorY(true);
-  configurarTimer1(255); 
+  configurarTimer1(1); 
   configurarTimer2(255);
 
   totalStepsX = 0;
