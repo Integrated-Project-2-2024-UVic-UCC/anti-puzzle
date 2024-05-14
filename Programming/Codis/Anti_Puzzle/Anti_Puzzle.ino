@@ -13,8 +13,8 @@
 
 #define DX_epin 10 // Nuevo detector de final de carrera en el eje X
 #define DY_spin 8  // Nuevo detector de final de carrera en el eje Y
-#define DX_dpin A4 // Nuevo detector de final de carrera en el eje X
-#define DY_ipin A5 // Nuevo detector de final de carrera en el eje Y
+#define DX_dpin 5 // Nuevo detector de final de carrera en el eje X
+#define DY_ipin 2 // Nuevo detector de final de carrera en el eje Y
 
 // Direcciones en la memoria EEPROM donde se guardarán las coordenadas
 #define EEPROM_X_ADDRESS 0
@@ -25,25 +25,11 @@ const int hall2Pin = A1; // Sensor Hall 2 (arriba derecha)
 const int hall3Pin = A2; // Sensor Hall 3 (abajo izquierda)
 const int hall4Pin = A3; // Sensor Hall 4 (abajo derecha)
 
-volatile int totalStepsX; 
-volatile int totalStepsY; 
+volatile long totalStepsX; 
+volatile long totalStepsY; 
 
 bool dirX;
 bool dirY;
-
-// *********************************
-// Incedeix a memoria
-// *********************************
-
-void Guardar_Memoria(int x, int y) {
-  int posX = EEPROM.read(EEPROM_X_ADDRESS);
-  int posY = EEPROM.read(EEPROM_Y_ADDRESS);
-  
-  if (posX != x && posY != y) {
-    EEPROM.write(EEPROM_X_ADDRESS, x);
-    EEPROM.write(EEPROM_Y_ADDRESS, y);
-  } 
-}
 
 // ················································
 // Timers i preescales
@@ -95,19 +81,19 @@ void configurarTimer2(unsigned int frecuenciaDeseada) {
 // Habilita i deshabilita motors
 // ················································
 
-void enableMotorX() {
+bool enableMotorX() {
   digitalWrite(X_ENABLE_PIN, LOW);
 } 
 
-void disableMotorX() {
+bool disableMotorX() {
   digitalWrite(X_ENABLE_PIN, HIGH);
 } 
 
-void enableMotorY() {
+bool enableMotorY() {
   digitalWrite(Y_ENABLE_PIN, LOW);
 } 
 
-void disableMotorY() {
+bool disableMotorY() {
   digitalWrite(Y_ENABLE_PIN, HIGH);
 } 
 
@@ -115,23 +101,23 @@ void disableMotorY() {
 // Geters
 // ################################################
 
-int getDX_d(){
-  int DX_d = digitalRead(DX_dpin); // Cambio el pin al detector nuevo
+bool getDX_d(){
+  bool DX_d = digitalRead(DX_dpin); // Cambio el pin al detector nuevo
   return DX_d;
 }
 
-int getDX_e(){
-  int DX_e = digitalRead(DX_epin); // Cambio el pin al detector nuevo
+bool getDX_e(){
+  bool DX_e = digitalRead(DX_epin); // Cambio el pin al detector nuevo
   return DX_e;
 }
 
-int getDY_i(){
-  int DY_i = digitalRead(DY_ipin); // Cambio el pin al detector nuevo
+bool getDY_i(){
+  bool DY_i = digitalRead(DY_ipin); // Cambio el pin al detector nuevo
   return DY_i;
 }
 
-int getDY_s(){
-  int DY_s = digitalRead(DY_spin); // Cambio el pin al detector nuevo
+bool getDY_s(){
+  bool DY_s = digitalRead(DY_spin); // Cambio el pin al detector nuevo
   return DY_s;
 }
 
@@ -228,17 +214,15 @@ void CI() {
     setSpeedMotorX(velocidadX);
   }
   disableMotorX();
-
-  // Paso 3: Guardar las coordenadas en la memoria EEPROM
-  Guardar_Memoria(getStepsX(), getStepsY());
 }
 
 void Home() {
-  int homeX = (15418)/2; // Mitad de la coordenada Y que son 15300 micropasos
-  int homeY = (8200)/2; // Mitad de la coordenada X que son 8200 micropasos --> 3200 4100
+  // Paso 1: Mover los motores a la mitad de las coordenadas
+  int mitadX = (15300)/2; // Mitad de la coordenada Y que son 15300 micropasos
+  int mitadY = (8200)/2; // Mitad de la coordenada X que son 8200 micropasos --> 3200
 
-  int Vx = homeY / 75;
-  int Vy = homeX / 75;
+  int Vx = mitadY / 75;
+  int Vy = mitadX / 75;
 
   // Paso 1: Mover el motor X a la posición de inicio en X
   setDirectionMotorX(false); 
@@ -248,38 +232,22 @@ void Home() {
   setSpeedMotorY(100);
 
   enableMotorX();
-
+  
   // Mover motor X
-  while (!getDX_d() || getDX_e()) {} 
+  while (getDX_e()) {} 
+  Serial.println(getDX_d());
   disableMotorX();
 
   enableMotorY();
 
   // Mover motor Y
-  while (!getDY_i() || getDY_s()) {}
+  while (getDY_s()) {}
   disableMotorY();
 
-  setSpeedMotorX(Vx);
-  setSpeedMotorY(Vy);
+  totalStepsX = 0;
+  totalStepsY = 0;
 
-  if (getDX_d() == HIGH){
-    setDirectionMotorX(false); 
-  }else if (getDX_e() == HIGH){
-    setDirectionMotorX(true);
-  }
-  
-  if (getDY_i() == HIGH){
-    setDirectionMotorY(false);
-  }else if (getDY_s() == HIGH){
-    setDirectionMotorY(true);
-  }
-
-  enableMotorX();
-  enableMotorY();
-  while (getStepsY() < homeX){}//&& (getStepsY() <= homeY)) {}
-
-  disableMotorX();
-  disableMotorY();
+  MoveToPosition(mitadX,mitadY);
 }
 
 int PosicioIman(){
@@ -292,15 +260,27 @@ int PosicioIman(){
   int EX = CalculerrorX(hall1,hall2,hall3,hall4);
   int EY = CalculerrorY(hall1,hall2,hall3,hall4);
 
-  bool dirX = EX > 0; // Si errX es positivo, el imán se mueve en la dirección positiva de X
-  bool dirY = EY > 0; // Si errY es positivo, el imán se mueve en la dirección positiva de Y
+  Serial.print("EX: ");
+  Serial.println(EX);
+  Serial.print("EY: ");
+  Serial.println(EY);
 
-  float moveX = map(EX, 505, 1024, 0, 8250); // Es posible que els valors dels pasos s'haigui de cambiar perque no faigui un salt tant gran 
-  float moveY = map(EY, 505, 1024, 0, 4570); // Es posible que els valors dels pasos s'haigui de cambiar perque no faigui un salt tant gran 
+  bool dirX = EX < 0; // Si errX es positivo, el imán se mueve en la dirección positiva de X
+  bool dirY = EY < 0; // Si errY es positivo, el imán se mueve en la dirección positiva de Y
+  Serial.println(dirX);
+  Serial.println(dirY);
 
-  if (moveX == 0 && moveY == 0) {Guardar_Memoria(getStepsX(), getStepsY());} 
-  
-  Movemotors(moveX, moveY, dirX, dirY);
+  float moveX = map(EX, 532, 1024, 0, 15300); // Es posible que els valors dels pasos s'haigui de cambiar perque no faigui un salt tant gran 
+  float moveY = map(EY, 532, 1024, 0, 8200); // Es posible que els valors dels pasos s'haigui de cambiar perque no faigui un salt tant gran 
+
+  Serial.print("moveX: ");
+  Serial.println(moveX);
+  Serial.print("moveY: ");
+  Serial.println(moveY);
+
+  Serial.println("Moure motors");
+
+  // MoveToPosition(moveX,moveY);
 }
 
 int CalculerrorX(int hall1,int hall2,int hall3,int hall4){
@@ -313,52 +293,86 @@ int CalculerrorY(int hall1,int hall2,int hall3,int hall4){
   return errY;
 }
 
-void Movemotors(float posX, float posY, bool dirX, bool dirY) {
-  // Mover el motor X
-  Movepos(posX, dirX, posY, dirY);
+void MoveToPosition(long stepX, long stepY) {
 
-  disableMotorX();
-  disableMotorY();
-}
+  long errX=10000;
+  long errY=10000;
+  long periode;
 
-void Movepos(float stepsX, bool dirX, float stepsY, bool dirY) {
+  while(errX>100 || errY>100) {
   
-  int Vx = stepsY / 75;
-  int Vy = stepsX / 75;
+    // control eix X
+    errX = stepX - totalStepsX;
+    setDirectionMotorX(errX>0);
 
-  setDirectionMotorX(dirX);
-  setDirectionMotorY(dirY);
-  
-  enableMotorX();
-  enableMotorY();
+    if (abs(errX)<=100) {
+      periode = 255;
+    } else if (abs(errX)>3200) {
+      periode = 16;
+    } else {
+      periode = map(abs(errX),100, 3200, 255, 50);
+    }
+    setSpeedMotorX(periode);
+    
+    Serial.print(getDX_e());
+    Serial.print(getDX_d());
 
-  while (getStepsX() < stepsX ){//&& getStepsY() >= stepsY)) {
-    // Configurar la velocidad del motor X en función de la distancia restante
-    delay(100);
-    float velX = map(stepsX - getStepsX(), 0, stepsX, 225, Vx);
-    float velY = map(stepsY - getStepsY(), 0, stepsY, 225, Vx);
-    setSpeedMotorX(velX);
-    setSpeedMotorY(velY);
+    if (errX>100 && getDX_d() || errX<-100 && getDX_e()) {
+      enableMotorX();
+      Serial.print("e");
+    } else {
+      Serial.print("d");
+      disableMotorX();
+    }
+
+    // control eix Y
+    errY = stepY - totalStepsY;
+    setDirectionMotorY(errY>0);
+
+    if (abs(errY)<=100) {
+      periode = 255;
+    } else if (abs(errY)>3200) {
+      periode = 50;
+    } else {
+      periode = map(abs(errY),100, 3200, 255, 50);
+    }
+    setSpeedMotorY(periode);
+    
+    Serial.print(getDY_s());
+    Serial.print(getDY_i());
+
+    if (errY>100 && getDY_i() || errY<-100 && getDY_s()) {
+      enableMotorY();
+    } else {
+
+      disableMotorY();
+    }
   }
+  // Serial.println("at position!!!");
 }
 
-// &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+
+// &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 // Interrupcions
-// &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+// &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 
 // Función para manejar la interrupción del Timer 1
 ISR(TIMER1_COMPA_vect) {
-  if(dirX) {totalStepsX++;} else {totalStepsX--;}
+  if (digitalRead(X_ENABLE_PIN) == LOW){
+    if(dirX) {totalStepsX++;} else {totalStepsX--;}
+  }
 }
 
 // Función para manejar la interrupción del Timer 2
 ISR(TIMER2_COMPA_vect) {
-  if(dirY) {totalStepsY++;} else {totalStepsY--;}
+  if (digitalRead(Y_ENABLE_PIN) == LOW){
+    if(dirY) {totalStepsY++;} else {totalStepsY--;}
+  }
 }
 
-// 
+// 
 // Codi Principal
-// 
+// 
 
 void setup() {
   Serial.begin(9600);
@@ -370,18 +384,15 @@ void setup() {
   pinMode(Y_DIR_PIN, OUTPUT);
   pinMode(Y_ENABLE_PIN, OUTPUT); 
 
-  pinMode(DX_epin, OUTPUT);
-  pinMode(DY_spin, OUTPUT);
-  pinMode(DX_dpin, OUTPUT);
-  pinMode(DY_ipin, OUTPUT);
+  pinMode(DX_epin,INPUT_PULLUP);
+  pinMode(DY_spin,INPUT_PULLUP);
+  pinMode(DX_dpin,INPUT_PULLUP);
+  pinMode(DY_ipin,INPUT_PULLUP);
 
-  pinMode(hall1Pin, INPUT);
-  pinMode(hall2Pin, INPUT);
-  pinMode(hall3Pin, INPUT);
-  pinMode(hall4Pin, INPUT);
-
-  pinMode(DX, INPUT_PULLUP); // Configura el pin DX como entrada con resistencia de pull-up
-  pinMode(DY, INPUT_PULLUP);
+  pinMode(hall1Pin, OUTPUT);
+  pinMode(hall2Pin, OUTPUT);
+  pinMode(hall3Pin, OUTPUT);
+  pinMode(hall4Pin, OUTPUT);
   
   configurarTimer1(255); 
   configurarTimer2(1);
@@ -395,5 +406,5 @@ void setup() {
 }
 
 void loop() {
-  // PosicioIman();
+  PosicioIman();
 }

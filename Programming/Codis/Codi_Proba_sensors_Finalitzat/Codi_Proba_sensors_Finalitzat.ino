@@ -12,9 +12,9 @@ int suma3 = 0;
 int suma4 = 0;
 
 int A325_1 = A0; 
-int A325_2 = A1;
-int A325_3 = A2;
-int A325_4 = A3;
+int A325_2 = A2;
+int A325_3 = A3;
+int A325_4 = A4;
 
 int val1 = 0;
 int val2 = 0;
