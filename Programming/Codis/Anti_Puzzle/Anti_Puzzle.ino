@@ -16,17 +16,15 @@
 #define DX_dpin 5 // Nuevo detector de final de carrera en el eje X
 #define DY_ipin 2 // Nuevo detector de final de carrera en el eje Y
 
-// Direcciones en la memoria EEPROM donde se guardarán las coordenadas
-#define EEPROM_X_ADDRESS 0
-#define EEPROM_Y_ADDRESS 2
-
-const int hall1Pin = A0; // Sensor Hall 1 (arriba izquierda)
-const int hall2Pin = A1; // Sensor Hall 2 (arriba derecha)
-const int hall3Pin = A2; // Sensor Hall 3 (abajo izquierda)
-const int hall4Pin = A3; // Sensor Hall 4 (abajo derecha)
+int A325_1 = A0; 
+int A325_2 = A2;
+int A325_3 = A3;
+int A325_4 = A4;
 
 volatile long totalStepsX; 
 volatile long totalStepsY; 
+
+float offset1, offset2, offset3, offset4;
 
 bool dirX;
 bool dirY;
@@ -228,20 +226,21 @@ void Home() {
   setDirectionMotorX(false); 
   setDirectionMotorY(false); 
 
-  setSpeedMotorX(100);
-  setSpeedMotorY(100);
+  setSpeedMotorX(150);
+  setSpeedMotorY(150);
 
   enableMotorX();
   
   // Mover motor X
   while (getDX_e()) {} 
-  Serial.println(getDX_d());
+  // Serial.println(getDX_d());
   disableMotorX();
 
   enableMotorY();
 
   // Mover motor Y
   while (getDY_s()) {}
+  // Serial.println(getDY_s());
   disableMotorY();
 
   totalStepsX = 0;
@@ -250,38 +249,138 @@ void Home() {
   MoveToPosition(mitadX,mitadY);
 }
 
-int PosicioIman(){
-  // 200 pasos per 16micropasoso = 3200micropasos 1 volta
-  int hall1 = analogRead(hall1Pin);
-  int hall2 = analogRead(hall2Pin);
-  int hall3 = analogRead(hall3Pin);
-  int hall4 = analogRead(hall4Pin);
-
-  int EX = CalculerrorX(hall1,hall2,hall3,hall4);
-  int EY = CalculerrorY(hall1,hall2,hall3,hall4);
-
-  Serial.print("EX: ");
-  Serial.println(EX);
-  Serial.print("EY: ");
-  Serial.println(EY);
-
-  bool dirX = EX < 0; // Si errX es positivo, el imán se mueve en la dirección positiva de X
-  bool dirY = EY < 0; // Si errY es positivo, el imán se mueve en la dirección positiva de Y
-  Serial.println(dirX);
-  Serial.println(dirY);
-
-  float moveX = map(EX, 532, 1024, 0, 15300); // Es posible que els valors dels pasos s'haigui de cambiar perque no faigui un salt tant gran 
-  float moveY = map(EY, 532, 1024, 0, 8200); // Es posible que els valors dels pasos s'haigui de cambiar perque no faigui un salt tant gran 
-
-  Serial.print("moveX: ");
-  Serial.println(moveX);
-  Serial.print("moveY: ");
-  Serial.println(moveY);
-
-  Serial.println("Moure motors");
-
-  // MoveToPosition(moveX,moveY);
+bool Print(float V1, float V2, float V3, float V4){
+  Serial.print(0);
+  Serial.print(" ");
+  Serial.print(V1);
+  Serial.print(" ");
+  Serial.print(V2+1000);
+  Serial.print(" ");
+  Serial.print(V3+2000);
+  Serial.print(" ");
+  Serial.print(V4+3000);
+  Serial.print(" ");
+  Serial.print(4000);
+  Serial.println(" ");
 }
+
+void calibrarSensores() {
+  float val1 = analogRead(A325_1);
+  float val2 = analogRead(A325_2);
+  float val3 = analogRead(A325_3);
+  float val4 = analogRead(A325_4);
+  
+  // Calcula los offsets para cada sensor
+  offset1 = 500 - val1;
+  offset2 = 500 - val2;
+  offset3 = 500 - val3;
+  offset4 = 500 - val4;
+}
+
+float leerSensorCalibrado(int pin, float offset) {
+  return analogRead(pin) + offset;
+}
+
+int PosicioIman(){
+  // ------------------------
+  int mitadX = 15300 / 2; // Mitad de la coordenada Y que son 15300 micropasos
+  int mitadY = 8200 / 2;  // Mitad de la coordenada X que son 8200 micropasos --> 3200
+  long errX;
+  int moveY;
+  int sum = 0;
+
+  while (sum < 2300) {
+    float val1 = leerSensorCalibrado(A325_1, offset1);
+    float val2 = leerSensorCalibrado(A325_2, offset2);
+    float val3 = leerSensorCalibrado(A325_3, offset3);
+    float val4 = leerSensorCalibrado(A325_4, offset4);
+
+    Print(val1, val2, val3, val4);
+
+  //   int EX = CalculerrorX(val1, val2, val3, val4);
+  //   int EY = CalculerrorY(val1, val2, val3, val4);
+  //   Serial.print(EX);
+  //   Serial.println();
+
+  //   sum = val1 + val2 + val3 + val4; 
+
+  //   if (EX>0){
+  //     Serial.print("Con if");
+  //     Serial.println();
+  //     errX = EX;
+  //   }else if(EX == 0){
+  //     Serial.print("else if");
+  //     Serial.println();
+  //     errX = 0;
+  //   }else{
+  //     Serial.print("else");
+  //     Serial.println();
+  //     errX = map(abs(EX), -520, 1024, 0, mitadX); 
+  //   }
+
+  //   // Calcular el error en pasos
+  //   // long errX = map(abs(EX), -520, 1024, 0, mitadX); 
+  //   long errY = map(abs(EY), -520, 1024, 0, mitadY); 
+  
+  //   MoveToPosition(errX, errY);
+  }
+}
+
+  // ------------------------
+
+
+//   int mitadX = (15300)/2; // Mitad de la coordenada Y que son 15300 micropasos
+//   int mitadY = (8200)/2; // Mitad de la coordenada X que son 8200 micropasos --> 3200
+//   int sum = 0;
+
+//   while (sum<2300){
+//     // 200 pasos per 16micropasoso = 3200micropasos 1 volta
+//     float val1 = analogRead(A325_1); 
+//     float val2 = analogRead(A325_2);
+//     float val3 = analogRead(A325_3);
+//     float val4 = analogRead(A325_4);
+
+//     Print(val1,val2,val3,val4);
+
+//     int EX = CalculerrorX(val1,val2,val3,val4);
+//     int EY = CalculerrorY(val1,val2,val3,val4);
+
+//     float sum = val1 + val2 + val3 + val4;
+//     // Serial.print(-500);
+//     // Serial.print(" ");
+//     // Serial.print(EX);
+//     // Serial.print(" ");
+//     // Serial.print(EY+500);
+//     // Serial.print(" ");
+//     // Serial.print(sum);
+//     // Serial.println(" ");
+//     // if (sum<2600){}
+//     int moveX = map(abs(EX), 0, 516, 0, 15300/2);
+//     // Serial.print("moveX: ");
+//     // Serial.println(moveX);
+    
+//     int moveY = map(EY, 0, 516, 0, 8200/2);
+//     MoveToPosition(moveX,moveY);
+
+//     // Serial.print("moveY: ");
+//     // Serial.println(moveY);
+
+//     // bool dirX = EX < 0; // Si errX es positivo, el imán se mueve en la dirección positiva de X
+//     // bool dirY = EY < 0; // Si errY es positivo, el imán se mueve en la dirección positiva de Y
+//     // Serial.println(dirX);
+//     // Serial.println(dirY);
+
+//     // Es posible que els valors dels pasos s'haigui de cambiar perque no faigui un salt tant gran 
+//     // float moveY = map(EY, 532, 998, 0, 8200); // Es posible que els valors dels pasos s'haigui de cambiar perque no faigui un salt tant gran 
+
+//     // Serial.println("Moure motors");
+
+//     // Serial.print("moveX: ");
+//     // Serial.println(moveX);
+//     // Serial.print("moveY: ");
+//     // Serial.println(moveY);
+//     }
+// }
 
 int CalculerrorX(int hall1,int hall2,int hall3,int hall4){
   int errX = (hall1 + hall2) - (hall3 + hall4);
@@ -294,13 +393,17 @@ int CalculerrorY(int hall1,int hall2,int hall3,int hall4){
 }
 
 void MoveToPosition(long stepX, long stepY) {
+  // Serial.print(stepX);
+  // Serial.print(" : ");
+  // Serial.print(stepX);
+  // Serial.println("");
 
   long errX=10000;
   long errY=10000;
   long periode;
 
   while(errX>100 || errY>100) {
-  
+    delay(100);
     // control eix X
     errX = stepX - totalStepsX;
     setDirectionMotorX(errX>0);
@@ -313,15 +416,10 @@ void MoveToPosition(long stepX, long stepY) {
       periode = map(abs(errX),100, 3200, 255, 50);
     }
     setSpeedMotorX(periode);
-    
-    Serial.print(getDX_e());
-    Serial.print(getDX_d());
 
     if (errX>100 && getDX_d() || errX<-100 && getDX_e()) {
       enableMotorX();
-      Serial.print("e");
     } else {
-      Serial.print("d");
       disableMotorX();
     }
 
@@ -337,20 +435,15 @@ void MoveToPosition(long stepX, long stepY) {
       periode = map(abs(errY),100, 3200, 255, 50);
     }
     setSpeedMotorY(periode);
-    
-    Serial.print(getDY_s());
-    Serial.print(getDY_i());
 
     if (errY>100 && getDY_i() || errY<-100 && getDY_s()) {
       enableMotorY();
     } else {
-
       disableMotorY();
     }
   }
   // Serial.println("at position!!!");
 }
-
 
 // &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 // Interrupcions
@@ -389,10 +482,11 @@ void setup() {
   pinMode(DX_dpin,INPUT_PULLUP);
   pinMode(DY_ipin,INPUT_PULLUP);
 
-  pinMode(hall1Pin, OUTPUT);
-  pinMode(hall2Pin, OUTPUT);
-  pinMode(hall3Pin, OUTPUT);
-  pinMode(hall4Pin, OUTPUT);
+  pinMode(A325_1, INPUT);
+  pinMode(A325_2, INPUT);
+  pinMode(A325_3, INPUT);
+  pinMode(A325_4, INPUT);
+  calibrarSensores();
   
   configurarTimer1(255); 
   configurarTimer2(1);
@@ -402,7 +496,7 @@ void setup() {
   totalStepsX = 0;
   totalStepsY = 0;
   // CI();
-  Home();
+  // Home();
 }
 
 void loop() {
