@@ -1,6 +1,16 @@
 #include <util/atomic.h>
 #include <EEPROM.h>
 
+ /*
+ __________________
+/                  \  A0 = sensor inferior dret
+|  s4          s2  |  A4 = senso inferior esquerre
+|                  |  A3 = sensor superior dret
+|                  |  A2 = sensor superior esquerre
+|  s3          s1  |
+\__________________/
+*/
+
 // Pins motor X
 #define X_STEP_PIN 9
 #define X_DIR_PIN 3
@@ -16,15 +26,17 @@
 #define DX_dpin 5 // Nuevo detector de final de carrera en el eje X
 #define DY_ipin 2 // Nuevo detector de final de carrera en el eje Y
 
-int A325_1 = A0; 
-int A325_2 = A2;
-int A325_3 = A3;
-int A325_4 = A4;
+const int pinLED_Rojo = 8;    // Pin para el LED rojo
+const int pinLED_Verde = 9;    // Pin para el LED verde
+const int pinInterruptor1 = 2; // Pin para el primer contacto del interruptor (posición 1)
+const int pinInterruptor2 = 3; // Pin para el segundo contacto del interruptor (posición 3)
 
-volatile long totalStepsX; 
-volatile long totalStepsY; 
+float A1324_1 = A0; 
+float A1324_2 = A1;
+float A1324_3 = A2;
+float A1324_4 = A3;
 
-float offset1, offset2, offset3, offset4;
+volatile long totalStepsX, totalStepsY; 
 
 bool dirX;
 bool dirY;
@@ -175,8 +187,27 @@ void setSpeedMotorY(float speed){
   TCNT2 = 0;
 } 
 
+// =================================================
+// Colors LED
+// =================================================
+
+void encenderVerde() {
+  digitalWrite(pinLED_Rojo, HIGH);   // Apagar LED rojo
+  digitalWrite(pinLED_Verde, LOW); // Encender LED verde
+}
+
+void encenderNaranja() {
+  digitalWrite(pinLED_Rojo, LOW);  // Encender LED rojo
+  digitalWrite(pinLED_Verde, LOW); // Encender LED verde (combinación puede dar naranja si es un LED RGB o combinación)
+}
+
+void encenderRojo() {
+  digitalWrite(pinLED_Rojo, LOW);  // Encender LED rojo
+  digitalWrite(pinLED_Verde, HIGH);  // Apagar LED verde
+}
+
 // @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-// Programa  ---  CI. ---  HOME. ----  PosicioIman.  
+// Programa  ---  CI. ---  HOME. ----  Nivells.  
 // @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 
 void CI() {
@@ -232,7 +263,9 @@ void Home() {
   enableMotorX();
   
   // Mover motor X
-  while (getDX_e()) {} 
+  while (getDX_e()) {
+    Serial.println("move");
+  } 
   // Serial.println(getDX_d());
   disableMotorX();
 
@@ -249,7 +282,7 @@ void Home() {
   MoveToPosition(mitadX,mitadY);
 }
 
-bool Print(float V1, float V2, float V3, float V4){
+void Print(float V1, float V2, float V3, float V4){
   Serial.print(0);
   Serial.print(" ");
   Serial.print(V1);
@@ -264,131 +297,111 @@ bool Print(float V1, float V2, float V3, float V4){
   Serial.println(" ");
 }
 
-void calibrarSensores() {
-  float val1 = analogRead(A325_1);
-  float val2 = analogRead(A325_2);
-  float val3 = analogRead(A325_3);
-  float val4 = analogRead(A325_4);
-  
-  // Calcula los offsets para cada sensor
-  offset1 = 500 - val1;
-  offset2 = 500 - val2;
-  offset3 = 500 - val3;
-  offset4 = 500 - val4;
-}
-
-float leerSensorCalibrado(int pin, float offset) {
-  return analogRead(pin) + offset;
-}
-
-int PosicioIman(){
-  // ------------------------
+void Nivell_1(){
   int mitadX = 15300 / 2; // Mitad de la coordenada Y que son 15300 micropasos
   int mitadY = 8200 / 2;  // Mitad de la coordenada X que son 8200 micropasos --> 3200
-  long errX;
-  int moveY;
-  int sum = 0;
+  int stepX = 0;
+  int stepY = 0; 
 
-  while (sum < 2300) {
-    float val1 = leerSensorCalibrado(A325_1, offset1);
-    float val2 = leerSensorCalibrado(A325_2, offset2);
-    float val3 = leerSensorCalibrado(A325_3, offset3);
-    float val4 = leerSensorCalibrado(A325_4, offset4);
+  int val1 = analogRead(A1324_1);
+  int val2 = analogRead(A1324_2);
+  int val3 = analogRead(A1324_3);
+  int val4 = analogRead(A1324_4);
 
-    Print(val1, val2, val3, val4);
+  int eX = CalculerrorX(val1,val2,val3,val4);
+  int eY = CalculerrorY(val1,val2,val3,val4);
 
-  //   int EX = CalculerrorX(val1, val2, val3, val4);
-  //   int EY = CalculerrorY(val1, val2, val3, val4);
-  //   Serial.print(EX);
-  //   Serial.println();
+  // Print(val1, val2, val3, val4);
 
-  //   sum = val1 + val2 + val3 + val4; 
+  int win = val1 + val2 + val3 + val4;
 
-  //   if (EX>0){
-  //     Serial.print("Con if");
-  //     Serial.println();
-  //     errX = EX;
-  //   }else if(EX == 0){
-  //     Serial.print("else if");
-  //     Serial.println();
-  //     errX = 0;
-  //   }else{
-  //     Serial.print("else");
-  //     Serial.println();
-  //     errX = map(abs(EX), -520, 1024, 0, mitadX); 
-  //   }
-
-  //   // Calcular el error en pasos
-  //   // long errX = map(abs(EX), -520, 1024, 0, mitadX); 
-  //   long errY = map(abs(EY), -520, 1024, 0, mitadY); 
-  
-  //   MoveToPosition(errX, errY);
+  int sX = 0;
+  int sY = 0;
+  if (win != 3900) {
+    if (eX > 10) {
+      sX = -map(abs(eX), 10, 2000, 0, mitadX);
+    } else if (eX < -10) {
+      sX = -map(abs(eX), -2000, -10, -mitadX, 0);
+    }
+    if (eY > 10) {
+      sY = -map(abs(eY), 10, 2000, 0, mitadY);
+    } else if (eY < -10) {
+      sY = -map(abs(eY), -2000, -10, -mitadY, 0);
+    }
   }
+
+  MoveToPosition(sX, sY);
 }
 
-  // ------------------------
+void Nivell_2() {
+  int mitadX = 15300 / 2; // Mitad de la coordenada Y que son 15300 micropasos
+  int mitadY = 8200 / 2;  // Mitad de la coordenada X que son 8200 micropasos --> 3200
+  int stepX = 0;
+  int stepY = 0; 
 
+  int val1 = analogRead(A1324_1);
+  int val2 = analogRead(A1324_2);
+  int val3 = analogRead(A1324_3);
+  int val4 = analogRead(A1324_4);
 
-//   int mitadX = (15300)/2; // Mitad de la coordenada Y que son 15300 micropasos
-//   int mitadY = (8200)/2; // Mitad de la coordenada X que son 8200 micropasos --> 3200
-//   int sum = 0;
+  int eX = CalculerrorX(val1,val2,val3,val4);
+  int eY = CalculerrorY(val1,val2,val3,val4);
 
-//   while (sum<2300){
-//     // 200 pasos per 16micropasoso = 3200micropasos 1 volta
-//     float val1 = analogRead(A325_1); 
-//     float val2 = analogRead(A325_2);
-//     float val3 = analogRead(A325_3);
-//     float val4 = analogRead(A325_4);
+  int win = val1 + val2 + val3 + val4;
 
-//     Print(val1,val2,val3,val4);
+  int sX = 0;
+  int sY = 0;
 
-//     int EX = CalculerrorX(val1,val2,val3,val4);
-//     int EY = CalculerrorY(val1,val2,val3,val4);
+  if (win != 3900) {
+    if (eX > 10) {
+      sX = map(abs(eX), 10, 2000, 0, mitadX);
+    } else if (eX < -10) {
+      sX = map(abs(eX), -2000, -10, -mitadX, 0);
+    }
+    if (eY > 10) {
+      sY = map(abs(eY), 10, 2000, 0, mitadY);
+    } else if (eY < -10) {
+      sY = map(abs(eY), -2000, -10, -mitadY, 0);
+    }
+  }
 
-//     float sum = val1 + val2 + val3 + val4;
-//     // Serial.print(-500);
-//     // Serial.print(" ");
-//     // Serial.print(EX);
-//     // Serial.print(" ");
-//     // Serial.print(EY+500);
-//     // Serial.print(" ");
-//     // Serial.print(sum);
-//     // Serial.println(" ");
-//     // if (sum<2600){}
-//     int moveX = map(abs(EX), 0, 516, 0, 15300/2);
-//     // Serial.print("moveX: ");
-//     // Serial.println(moveX);
-    
-//     int moveY = map(EY, 0, 516, 0, 8200/2);
-//     MoveToPosition(moveX,moveY);
+  MoveToPosition(sX, sY);
+}
 
-//     // Serial.print("moveY: ");
-//     // Serial.println(moveY);
+void Nivell_3() {
+  int mitadX = 15300 / 2; // Mitad de la coordenada Y que son 15300 micropasos
+  int mitadY = 8200 / 2;  // Mitad de la coordenada X que son 8200 micropasos --> 3200
+  int sX = 0;
+  int sY = 0; 
 
-//     // bool dirX = EX < 0; // Si errX es positivo, el imán se mueve en la dirección positiva de X
-//     // bool dirY = EY < 0; // Si errY es positivo, el imán se mueve en la dirección positiva de Y
-//     // Serial.println(dirX);
-//     // Serial.println(dirY);
+  int val1 = analogRead(A1324_1);
+  int val2 = analogRead(A1324_2);
+  int val3 = analogRead(A1324_3);
+  int val4 = analogRead(A1324_4);
 
-//     // Es posible que els valors dels pasos s'haigui de cambiar perque no faigui un salt tant gran 
-//     // float moveY = map(EY, 532, 998, 0, 8200); // Es posible que els valors dels pasos s'haigui de cambiar perque no faigui un salt tant gran 
+  int eX = CalculerrorX(val1,val2,val3,val4);
+  int eY = CalculerrorY(val1,val2,val3,val4);
 
-//     // Serial.println("Moure motors");
+  int win = val1 + val2 + val3 + val4;
 
-//     // Serial.print("moveX: ");
-//     // Serial.println(moveX);
-//     // Serial.print("moveY: ");
-//     // Serial.println(moveY);
-//     }
-// }
+  if (win != 3900) {
+    if (abs(eX) > 10 || abs(eY) > 10) {
+      sX = random(-mitadX, mitadX);
+      sY = random(-mitadY, mitadY);
+    }
+  }
+
+  MoveToPosition(sX, sY);
+}
+
 
 int CalculerrorX(int hall1,int hall2,int hall3,int hall4){
-  int errX = (hall1 + hall2) - (hall3 + hall4);
+  int errX = (hall3 + hall4) - (hall2 + hall1);
   return errX;
 }
 
 int CalculerrorY(int hall1,int hall2,int hall3,int hall4){
-  int errY = (hall1 + hall4) - (hall2 + hall3);
+  int errY = (hall2 + hall4) - (hall1 + hall3);
   return errY;
 }
 
@@ -475,18 +488,23 @@ void setup() {
   pinMode(X_ENABLE_PIN, OUTPUT);
   pinMode(Y_STEP_PIN, OUTPUT);
   pinMode(Y_DIR_PIN, OUTPUT);
-  pinMode(Y_ENABLE_PIN, OUTPUT); 
+  pinMode(Y_ENABLE_PIN, OUTPUT);
+
+  pinMode(pinLED_Rojo, OUTPUT);
+  pinMode(pinLED_Verde, OUTPUT);
+
+  pinMode(pinInterruptor1, INPUT_PULLUP);
+  pinMode(pinInterruptor2, INPUT_PULLUP);
 
   pinMode(DX_epin,INPUT_PULLUP);
   pinMode(DY_spin,INPUT_PULLUP);
   pinMode(DX_dpin,INPUT_PULLUP);
   pinMode(DY_ipin,INPUT_PULLUP);
 
-  pinMode(A325_1, INPUT);
-  pinMode(A325_2, INPUT);
-  pinMode(A325_3, INPUT);
-  pinMode(A325_4, INPUT);
-  calibrarSensores();
+  pinMode(A1324_1, INPUT);
+  pinMode(A1324_2, INPUT);
+  pinMode(A1324_3, INPUT);
+  pinMode(A1324_4, INPUT);
   
   configurarTimer1(255); 
   configurarTimer2(1);
@@ -496,9 +514,23 @@ void setup() {
   totalStepsX = 0;
   totalStepsY = 0;
   // CI();
-  // Home();
+  Home();
 }
 
 void loop() {
-  PosicioIman();
+  int estadoInterruptor1 = digitalRead(pinInterruptor1);
+  int estadoInterruptor2 = digitalRead(pinInterruptor2);
+
+  if (estadoInterruptor1 == LOW && estadoInterruptor2 == HIGH) {
+    encenderRojo();
+    Nivell_3();
+
+  } else if (estadoInterruptor1 == HIGH && estadoInterruptor2 == HIGH) {
+    encenderNaranja();
+    Nivell_2(); 
+
+  } else if (estadoInterruptor1 == HIGH && estadoInterruptor2 == LOW) {
+    encenderVerde();
+    Nivell_1(); 
+  }
 }

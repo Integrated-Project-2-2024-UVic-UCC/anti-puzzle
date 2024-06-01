@@ -190,10 +190,10 @@ void loop() {
   // Serial.println(s);
 
   setSpeedMotorX(100);
-  Serial.println("IN: ");
+  Serial.println("IN: 1");
   if(getStepsX()>3200){
     disableMotorX();
-    Serial.println("IN: ");
+    Serial.println("IN: 2");
     setSpeedMotorX(200);}
   // } else if (getStepsX()>1000) {
   //    setSpeedMotorX(225);
