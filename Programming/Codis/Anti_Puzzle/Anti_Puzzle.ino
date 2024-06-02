@@ -198,7 +198,7 @@ void encenderVerde() {
 
 void encenderNaranja() {
   digitalWrite(pinLED_Rojo, LOW);  // Encender LED rojo
-  digitalWrite(pinLED_Verde, LOW); // Encender LED verde (combinación puede dar naranja si es un LED RGB o combinación)
+  digitalWrite(pinLED_Verde, LOW); // Encender LED verde 
 }
 
 void encenderRojo() {
@@ -524,13 +524,16 @@ void loop() {
   if (estadoInterruptor1 == LOW && estadoInterruptor2 == HIGH) {
     encenderRojo();
     Nivell_3();
+    Home();
 
   } else if (estadoInterruptor1 == HIGH && estadoInterruptor2 == HIGH) {
     encenderNaranja();
     Nivell_2(); 
+    Home();
 
   } else if (estadoInterruptor1 == HIGH && estadoInterruptor2 == LOW) {
     encenderVerde();
     Nivell_1(); 
+    Home();
   }
 }
