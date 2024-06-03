@@ -3,7 +3,7 @@
 </div>
 <div align="center">
 
-https://github.com/Integrated-Project-2-2024-UVic-UCC/anti-puzzle/assets/158203662/878d49b2-8335-4441-8429-3c89f6a45003
+[![IMAGE ALT TEXT HERE](https://img.youtube.com/vi/cqxajy784bM/0.jpg)](https://www.youtube.com/watch?v=cqxajy784bM)
 
 </div>
 <p>
