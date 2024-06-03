@@ -55,7 +55,7 @@ https://github.com/Integrated-Project-2-2024-UVic-UCC/anti-puzzle/assets/1582036
 <td width="50%">
 <h3 align="center">Electrical Part ⚡</h3>
 <div align="center">
-<img src="https://github.com/Integrated-Project-2-2024-UVic-UCC/anti-puzzle/blob/main/Electrical%20Part/Imagen1.jpg">
+<img src="https://github.com/Integrated-Project-2-2024-UVic-UCC/anti-puzzle/blob/main/Electrical%20Part/ANTI%20PUZZLE%20BLUEPRINT_page-0001%20(1).jpg">
 <p>
 </p>
 <p>In this section you will be able to see the drawings and the electronic designs as well as the datasheets.</p>
