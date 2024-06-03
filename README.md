@@ -29,7 +29,7 @@ https://github.com/Integrated-Project-2-2024-UVic-UCC/anti-puzzle/assets/1582036
 <td width="100%">
 <h3 align="center">Anti-Puzzle BOM 📖✔️</h3>
 <div align="center">
-<img src="https://github.com/Integrated-Project-2-2024-UVic-UCC/anti-puzzle/blob/main/Imatges/Projecte%5B1%5D.jpg">
+<img src="https://github.com/Integrated-Project-2-2024-UVic-UCC/anti-puzzle/blob/main/Imatges/Captura%20de%20pantalla%202024-06-03%20025511.png">
 <p>
 </p>
 <p>In this section you will see each of the components that will shape this project. For each component you will have a purchase link.💲 </p>
